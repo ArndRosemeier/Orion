@@ -107,6 +107,58 @@ trap 'unset FTP_PASSWORD _CAMPAIGNER_FTP_PASSWORD' EXIT
 
 echo "${C_CYAN}Building Orion for ${BASE_PATH} ...${C_RESET}"
 rm -rf dist
+# Fail fast when the FTP data channel is not answering.
+#
+# This box has seen the data channel stall while the control channel stayed
+# healthy: login, CWD, SIZE and DELE answer instantly, then STOR, LIST and RETR
+# receive nothing and time out. Without this check a sync would sit in a
+# per-file timeout and look like a hang; with it the deploy says what is wrong
+# and uploads nothing. It reads one small file that is known to exist.
+echo "${C_CYAN}Checking the FTP data channel ...${C_RESET}"
+set +e
+FTP_PASSWORD="$_CAMPAIGNER_FTP_PASSWORD" python3 - "$FTP_SERVER" "$FTP_USER" <<'CHANNEL_CHECK'
+import ftplib, os, sys
+
+server, user = sys.argv[1], sys.argv[2]
+password = os.environ.get("FTP_PASSWORD", "")
+ftp = ftplib.FTP()
+try:
+    ftp.connect(server, 21, timeout=20)
+    ftp.login(user, password)
+    ftp.set_pasv(True)
+    ftp.voidcmd("TYPE I")
+    ftp.sock.settimeout(25)
+    chunks = []
+    ftp.retrbinary("RETR /webseiten/apps.json", chunks.append)
+    size = sum(len(chunk) for chunk in chunks)
+    if size == 0:
+        raise RuntimeError("the channel returned zero bytes")
+    print(f"  data channel ok ({size} bytes read)")
+    try:
+        ftp.quit()
+    except Exception:
+        ftp.close()
+    sys.exit(0)
+except Exception as exc:
+    print(f"  data channel FAILED: {type(exc).__name__}: {exc}", file=sys.stderr)
+    try:
+        ftp.close()
+    except Exception:
+        pass
+    sys.exit(3)
+CHANNEL_CHECK
+channel=$?
+set -e
+unset FTP_PASSWORD
+if [[ "$channel" -ne 0 ]]; then
+  echo "${C_RED}Error: the FTP data channel is not responding. Nothing was uploaded.${C_RESET}" >&2
+  echo "  The control channel answers (login, CWD, SIZE), so the account, the" >&2
+  echo "  password and the paths are right; the passive data connection is what" >&2
+  echo "  is stalling. Repeated attempts can prolong a server-side throttle, so" >&2
+  echo "  wait a while (or deploy from another network) and try again." >&2
+  exit 3
+fi
+
 ORION_BASE="$BASE_PATH" pnpm run build:domainfactory
 
 echo "${C_YELLOW}Copying .htaccess ...${C_RESET}"
