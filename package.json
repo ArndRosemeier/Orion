@@ -10,6 +10,7 @@
     "build:domainfactory": "tsc --noEmit && vite build --mode domainfactory",
     "deploy": "bash deploy-sync.sh",
     "deploy:dry-run": "bash deploy-sync.sh --dry-run",
+    "deploy:sync": "powershell -ExecutionPolicy Bypass -File deploy-sync.ps1",
     "screenshot": "node scripts/make-screenshot.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit --pretty false",

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import htaccess from "../../../public/.htaccess?raw";
 import manifestoRaw from "../../../public/futuremagic.json?raw";
 import deployScript from "../../../deploy-sync.sh?raw";
+import deployPs1 from "../../../deploy-sync.ps1?raw";
 
 /**
  * The deploy's contract with the website, pinned.
@@ -59,5 +60,17 @@ describe("the futuremagic deploy", () => {
     // A registration that disagrees with the deploy path would link to nothing.
     expect(deployScript).toContain('--path "$BASE_PATH"');
     expect(deployScript).toContain("futuremagic-registry.py");
+  });
+
+  it("keeps the Windows deploy on those same paths", () => {
+    const base = /\[string\]\$BasePath = "([^"]+)"/.exec(deployPs1)?.[1];
+    const remote = /\[string\]\$RemotePath = "([^"]+)"/.exec(deployPs1)?.[1];
+    const slug = /\[string\]\$Slug = "([^"]+)"/.exec(deployPs1)?.[1];
+    expect(base).toBe("/Orion/");
+    expect(remote).toBe("/webseiten/Orion/");
+    expect(slug).toBe("Orion");
+    expect(deployPs1).toContain("$env:ORION_BASE = $BasePath");
+    expect(deployPs1).toContain("Register-FuturemagicApp.ps1");
+    expect(deployPs1).toContain("-Path $BasePath");
   });
 });
