@@ -12,13 +12,34 @@ const crossOriginIsolation = {
   "Cross-Origin-Embedder-Policy": "require-corp",
 };
 
-export default defineConfig({
-  plugins: [react()],
-  server: { headers: crossOriginIsolation },
-  preview: { headers: crossOriginIsolation },
-  test: {
-    globals: true,
-    environment: "node",
-    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
-  },
+/**
+ * Sub-path support for the static deploy.
+ *
+ * `https://futuremagic.de/Orion/` serves the app from a directory, so every asset
+ * URL has to be prefixed. The base comes from `ORION_BASE` when set (the deploy
+ * script sets it to `/Orion/`) and defaults to `/` for a root deploy and for the
+ * browser test lane, which serves the app at `/`.
+ */
+export default defineConfig(({ mode }) => {
+  const fromEnv = process.env.ORION_BASE?.trim();
+  const base =
+    fromEnv && fromEnv.length > 0
+      ? fromEnv.endsWith("/")
+        ? fromEnv
+        : `${fromEnv}/`
+      : mode === "domainfactory"
+        ? "/Orion/"
+        : "/";
+
+  return {
+    base,
+    plugins: [react()],
+    server: { headers: crossOriginIsolation },
+    preview: { headers: crossOriginIsolation },
+    test: {
+      globals: true,
+      environment: "node",
+      include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    },
+  };
 });

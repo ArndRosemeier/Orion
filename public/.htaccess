@@ -1,0 +1,53 @@
+# Orion - Apache config for domainfactory / futuremagic.de
+#
+# `RewriteBase` is patched by deploy-sync.sh to match the deploy path, so this
+# file is correct for any sub-path without editing it by hand.
+
+DirectoryIndex index.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # RewriteBase is patched by deploy-sync.sh to match the deploy path
+  RewriteBase /Orion/
+
+  # A real file or directory wins.
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Everything else is the app: a shareable link is a fragment on index.html.
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+<IfModule mod_mime.c>
+  AddType text/html .html
+  AddType application/javascript .js
+  AddType application/javascript .mjs
+  # Without this the WASM kernels are served as octet-stream and
+  # `WebAssembly.instantiateStreaming` refuses them.
+  AddType application/wasm .wasm
+  AddType application/json .json
+  AddType image/png .png
+  AddType image/svg+xml .svg
+</IfModule>
+
+<IfModule mod_headers.c>
+  # Cross-origin isolation, which is what makes `SharedArrayBuffer` available.
+  #
+  # The CPU worker pool uses it to hand a tile's pixels to the pass image without
+  # a copy, and reports `transport: "shared"` when it works. Without these two
+  # headers the pool still renders correctly — it falls back to transferring
+  # buffers — but the zero-copy path is unavailable, so they are part of the
+  # deploy rather than an optimisation to remember later.
+  Header set Cross-Origin-Opener-Policy "same-origin"
+  Header set Cross-Origin-Embedder-Policy "require-corp"
+
+  <FilesMatch "\.(js|css|png|svg|woff2?|mjs|wasm)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  # The app shell and the manifest are never cached, so a deploy is visible
+  # immediately and the site's registry can read the current manifest.
+  <FilesMatch "\.(html|json)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>

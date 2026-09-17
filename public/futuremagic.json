@@ -1,0 +1,15 @@
+{
+  "title": "Orion",
+  "tagline": "Arbitrarily deep fractal zoom: an adaptive precision ladder, GPU-first with WebGPU and WebGL2, and a multithreaded WASM CPU core — every kernel pinned against an exact oracle.",
+  "tags": [
+    "fractal",
+    "math",
+    "zoom",
+    "GPU",
+    "WebGPU",
+    "WebGL2",
+    "WASM",
+    "visualisation"
+  ],
+  "screenshot": "shot.png"
+}

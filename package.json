@@ -7,6 +7,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:domainfactory": "tsc --noEmit && vite build --mode domainfactory",
+    "deploy": "bash deploy-sync.sh",
+    "deploy:dry-run": "bash deploy-sync.sh --dry-run",
+    "screenshot": "node scripts/make-screenshot.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit --pretty false",
     "lint": "eslint .",

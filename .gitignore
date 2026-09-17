@@ -15,3 +15,11 @@ crates/*/target
 # Playwright artifacts
 test-results/
 playwright-report/
+
+# Python bytecode from the deploy tooling
+__pycache__/
+*.pyc
+
+# Deploy backups (the registry as downloaded before each write)
+.futuremagic/
+.ftp.env.local

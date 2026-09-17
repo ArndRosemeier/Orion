@@ -33,6 +33,8 @@ acquire_lock
   cd "$ROOT"
   echo "--- check:wasm (committed artifact vs crates/l0) ---"
   bash "$ROOT/scripts/check-wasm.sh"
+  echo "--- check:deploy (futuremagic registry upsert, offline) ---"
+  python3 "$ROOT/scripts/futuremagic-registry.py" --selftest
   echo "--- typecheck ---"
   "$PM" run typecheck
   echo "--- lint ---"

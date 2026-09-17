@@ -89,6 +89,8 @@ LANDED | row=39 | note=WebGL2 emulated double precision (Veltkamp splitting): bo
 LANDED | row=44 | note=the ladder is fed by measurement: a render records the validated series skip against the view shape and the next plan reads it (measured skip 399/400, estimated work 174,823 -> 4,477)
 QUEUE | debt | note=the tile cache is per-lattice and bounded (512 tiles): a zoom change discards the lattice rather than migrating entries
 
+LANDED | row=45 | sha=n/a (no commits yet) | verify=MY OWN: gate check:deploy (registry selftest) + 313 unit + 41 browser tests green | retired=— | note=Orion deploys to futuremagic.de like the sibling projects, plus the registration step the Linux path skipped: /webseiten/apps.json upserted with one entry, byte-identical to the Windows helper's style (round-tripped against the live file). BLOCKED on the upload itself: the FTP data channel stalls from this box (control commands fine, data connection established, then STOR/LIST/MKD hang in both curl and ftplib)
+
 QUEUE | S6 | note=a WASM reference orbit (still JavaScript bigint, computed once per worker per view — the main remaining latency on a new deep view)
 QUEUE | S6 | note=f64x2 in the reference-orbit computation, once the orbit itself is in Rust
 QUEUE | debt | note=whether a 2-iteration BLA block pays is still unmeasured; the validator starts at 4 iterations
