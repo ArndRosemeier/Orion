@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.*.local
+.DS_Store
+coverage
+*.log
+.vite
+
+# Rust build output (the committed artifact lives in src/domain/engines/l0.wasm)
+crates/*/target
+
+# Playwright artifacts
+test-results/
+playwright-report/

@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Orion render harness</title>
+  </head>
+  <body>
+    <!-- Only the browser lane loads this page. It exposes the render backends
+         to Playwright; it is not part of the app. -->
+    <canvas id="canvas" width="64" height="48"></canvas>
+    <script type="module" src="/src/test-harness/render.ts"></script>
+  </body>
+</html>
