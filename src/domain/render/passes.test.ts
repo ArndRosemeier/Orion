@@ -15,14 +15,17 @@ function tileCount(
 }
 
 describe("passesFor", () => {
-  it("keeps the GPU passes as single-draw calls", () => {
+  it("bounds the GPU coarse tile so its synchronous repair cannot stall the preview", () => {
     const passes = passesFor("gpu", 960, 640, 8);
     expect(passes.map((pass) => pass.name)).toEqual(["coarse", "full"]);
-    // The coarse pass over a 960x640 canvas at step 8 is 120x80 samples: one
-    // tile, one draw call, which is what a GPU wants.
     const coarse = passes[0];
     expect(coarse?.step).toBe(8);
-    expect(tileCount(960, 640, 8, coarse?.samplesAcross ?? 0)).toBe(1);
+    // A flagged pixel is repaired on the CPU, synchronously and in proportion to
+    // the tile's area, so the coarse tile is bounded. The old 1024 span made one
+    // 1024x1024 tile that repaired 1,048,576 pixels (54.9s measured) before the
+    // coarse could paint — the preview pass stalled behind the exact repair.
+    expect(coarse?.samplesAcross).toBeLessThanOrEqual(128);
+    expect(tileCount(960, 640, 8, coarse?.samplesAcross ?? 0)).toBeLessThanOrEqual(16);
   });
 
   it("gives the pool several waves of tiles on the coarse pass", () => {

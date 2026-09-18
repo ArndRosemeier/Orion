@@ -383,3 +383,20 @@ Append a short section per landing (or link a raw gate log path kept until verif
 - **A second real bug, found by running the rewired screenshot path:** `scripts/make-screenshot.mjs` killed the `pnpm` wrapper but not the `vite` grandchild, which kept node's inherited stdout pipe open so the script never exited (it produced the PNG and then hung). Fixed by spawning the preview server detached and signalling its process group, with a plain `kill` fallback for Windows. Measured after: `pnpm run screenshot` writes `public/shot.png` (1280x832) and exits in ~4s.
 - COPIES: 1 — checked, no duplication (grepped: `channel:` in `playwright.config.ts` and `make-screenshot.mjs` — both `chromium`; one env file, one wrapper).
 - Not yet proven: the lane on a non-Debian rootless image; GPU timing, as always.
+
+### Landing row 48 — GitHub auto-deploy
+
+- Scope: `.github/workflows/deploy.yml` (runs the gate, then the same `deploy-sync.sh` the manual path uses), plus `rust-toolchain.toml` pinning rustc **1.98.1** because the wasm drift check is byte-exact. Ledger row 48.
+- Evidence: the first run (commit `e00c200`, push to `main`) reported **success** — gate + build at `/Orion/` + FTP sync + registry upsert. Live checks from outside: `https://futuremagic.de/Orion/` HTTP 200, `/Orion/futuremagic.json` served, and `https://futuremagic.de/apps.json` carrying the entry with `updatedAt` at the run's time.
+- Pin: the toolchain is pinned in one file so a floating `stable` cannot rebuild the committed `.wasm` with different bytes and fail the drift check (a false alarm that would block every deploy).
+- Not verifiable from here: GitHub repository secrets. The owner confirmed `FTP_PASSWORD` exists.
+
+### Landing row 49 — the coarse pass is bounded by its repair cost
+
+- Scope: `passesFor("gpu", …)` gives the coarse pass a 64-sample tile instead of 1024, and `App.tsx` only reassigns the canvas backing store on a real size change. Ledger row 49.
+- **Measured root cause** (real browser, deep stage change): the view centre's reference orbit was **36 entries**, so every pixel was flagged, and `repairFlaggedPixels` ran synchronously on the main thread over a 1024x1024 coarse lattice tile: **54,905 ms** for 1,048,576 pixels before the coarse could paint. The preview pass was the most expensive pass, and the page was unresponsive for the duration — the reported "empty wait screen".
+- Fix, re-measured: through a 60-notch deep zoom the coarse (`160x104`) paints repeatedly (1.2 s … 9.8 s), the page stays responsive, and the render completes as `webgpu · perturbation → perturbation-f32-compute · preview`.
+- Pin (`passes.test.ts`): the GPU coarse `samplesAcross` is **≤ 128** with a small tile count, replacing "keeps the GPU passes as single-draw calls" — a pin whose premise (draw cost) was the wrong cost.
+- Gate: `bash scripts/gate.sh` → wasm drift + deploy selftest + **349 unit** + **41 browser** green.
+- Honest debt: the **full** pass still repairs synchronously on the main thread, so a view whose reference orbit is exhausted can still freeze while the full pass completes. Follow-up: run repair off-thread, or route such views to the worker pool.
+- COPIES: 1 — checked (one coarse-tile constant; one guarded canvas-size assignment).

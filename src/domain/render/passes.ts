@@ -7,6 +7,11 @@
  * tile and — much worse — a single tile uses a single worker, so a pass cut into
  * one tile leaves the whole pool idle while one thread does all of it.
  *
+ * A GPU tile is also not free: a large tile is one cheap draw, but a flagged
+ * pixel is repaired on the CPU and the repair is proportional to the tile's
+ * area. The coarse tile is therefore bounded separately from the full tile —
+ * see `GPU_COARSE_SAMPLES`.
+ *
  * That was measured, not assumed. On the app's coarse pass (a 120x80 sample grid
  * at step 8, 600 iterations, four workers):
  *
@@ -17,8 +22,9 @@
  * | 32 | 12 | 586ms |
  *
  * So the pool gets tiles small enough to give every worker several waves, and the
- * GPU keeps its single-draw passes. Both are expressed here, in one place, so the
- * choice is testable rather than buried in a component.
+ * GPU gets a large single-draw full tile but a small coarse tile (its cost is the
+ * synchronous repair, not the draw). Both are expressed here, in one place, so
+ * the choice is testable rather than buried in a component.
  */
 
 export type BackendKind = "gpu" | "pool";
@@ -30,8 +36,18 @@ export type PassPlan = {
   readonly samplesAcross: number;
 };
 
-/** Samples per tile on a GPU, where a big tile is one cheap draw call. */
-const GPU_COARSE_SAMPLES = 1024;
+/**
+ * Samples per tile on a GPU.
+ *
+ * The coarse tile is deliberately small. A large tile is one cheap draw call,
+ * but a flagged pixel is repaired on the CPU, synchronously, and the repair is
+ * proportional to the tile's area — so a 1024x1024 coarse tile is the *most*
+ * expensive pass to set up, exactly backwards for the pass that exists to land
+ * first. Measured on a deep view whose short reference orbit flags every pixel:
+ * the 1024x1024 coarse tile spent **54.9s** in `repairFlaggedPixels` (1,048,576
+ * pixels) before the coarse could paint. Bounding the tile bounds that stall.
+ */
+const GPU_COARSE_SAMPLES = 64;
 const GPU_FULL_SAMPLES = 256;
 
 /**

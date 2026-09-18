@@ -207,8 +207,11 @@ export function App() {
       size.height,
       window.devicePixelRatio || 1,
     );
-    display.width = backing.width;
-    display.height = backing.height;
+    // Assigning `canvas.width`/`height` clears the bitmap even when the value is
+    // unchanged, so only touch it on a real size change — otherwise a spurious
+    // ResizeObserver run would blank a frame that was just painted.
+    if (display.width !== backing.width) display.width = backing.width;
+    if (display.height !== backing.height) display.height = backing.height;
 
     const isFirstMeasurement = !firstMeasurementRef.current;
     firstMeasurementRef.current = true;

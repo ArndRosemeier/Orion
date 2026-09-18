@@ -109,6 +109,8 @@ AGENTS.md only points here — do not paste encyclopedias into always-on rules.
 
 62. **A resize keeps the place and the zoom** — re-expressing a view at a new pixel grid must preserve the complex-plane centre and the per-pixel scale; change either and the image jumps or zooms under the user when they drag a window edge. `resizeView` does exactly that, recomputes the complex width through `makeView` so validation still runs, and the honest rounding (a few ulps of width) is documented like navigation's. _Landing 46._
 
+63. **A cheap draw is not a cheap pass** — a GPU dispatch over a big tile is cheap, but the CPU work the tile triggers (here: flagged-pixel repair) scales with the tile's area, so the latency-critical pass must be bounded by the expensive side rather than the cheap one. _Incident (landing 49):_ the coarse pass used a 1024x1024 tile because "a GPU wants one draw call"; at a deep view whose reference orbit was exhausted, every pixel was flagged and the synchronous repair took **54.9 s** before the preview could paint — the pass that exists to land first was the most expensive one.
+
 ## Do not / do instead
 
 | Do not                                                   | Do instead                                       | Incident / why                                              |

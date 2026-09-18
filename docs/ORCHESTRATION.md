@@ -97,6 +97,10 @@ LANDED | row=47 | sha=n/a (no commits yet) | verify=MY OWN: GATE GREEN end to en
 
 LANDED | row=48 | sha=n/a (no commits yet) | verify=workflow YAML parses (js-yaml); NOT run on GitHub (no gh auth, secret unverifiable) | retired=— | note=GitHub Actions auto-deploy on push to main / workflow_dispatch: checkout → pnpm/node → install → Rust wasm target → managed browser → `bash scripts/gate.sh` → `bash deploy-sync.sh`. Wraps the canonical deploy script (build /Orion/, patch .htaccess, incremental FTP sync, registry upsert) instead of reimplementing it with an FTP action, so CI and local deploys cannot drift; the gate runs first so a red build never publishes. Needs repo secret `FTP_PASSWORD`
 
+LANDED | row=48 | sha=e00c200 | verify=MY OWN from the Actions API: run success; live app HTTP 200 and registry entry updated | retired=— | note=first auto-deploy executed on push and succeeded (gate + build + FTP sync + registry)
+
+LANDED | row=49 | sha=pending | verify=MY OWN: gate green (wasm + deploy selftest + 349 unit + 41 browser); fix re-measured in a real browser | retired=— | note=the coarse pass was the most expensive pass at a deep stage change: a 1024x1024 coarse lattice tile spent **54.9s** in synchronous `repairFlaggedPixels` (1,048,576 px) before painting, so the screen sat empty and the page froze. Bounded the GPU coarse tile to 64 samples and guarded the canvas backing-store assignment; the coarse now paints throughout a deep zoom (1.2-9.8s) and the page stays responsive. Debt: the full pass still repairs synchronously
+
 QUEUE | S6 | note=a WASM reference orbit (still JavaScript bigint, computed once per worker per view — the main remaining latency on a new deep view)
 QUEUE | S6 | note=f64x2 in the reference-orbit computation, once the orbit itself is in Rust
 QUEUE | debt | note=whether a 2-iteration BLA block pays is still unmeasured; the validator starts at 4 iterations
