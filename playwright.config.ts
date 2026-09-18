@@ -3,10 +3,12 @@ import { defineConfig } from "playwright/test";
 /**
  * The browser lane: proves the GPU kernels agree with the CPU oracle.
  *
- * It runs against the real Vite dev server and the real render backends. Chrome
- * is driven through SwiftShader (software Vulkan), which is the only rasteriser
- * this box has — see docs/TESTING.md for the capability probe that established
- * this works for both WebGL2 and WebGPU.
+ * It runs against the real Vite dev server and the real render backends.
+ * Playwright's **managed** Chromium is driven through SwiftShader (software
+ * Vulkan) — see docs/TESTING.md for the capability probe that established this
+ * works for both WebGL2 and WebGPU. The browser version is pinned by the
+ * `playwright` version in pnpm-lock.yaml, not by whatever Chrome the machine
+ * happens to have; `bash scripts/setup-browser.sh` installs it rootless.
  *
  * Correctness only. SwiftShader is 100-1000x slower than silicon, so nothing
  * here may assert a timing.
@@ -20,7 +22,7 @@ export default defineConfig({
   reporter: [["list"]],
   use: {
     baseURL: "http://127.0.0.1:5199",
-    channel: "chrome",
+    channel: "chromium",
     launchOptions: {
       // WebGL2 needs SwiftShader; WebGPU needs Chrome's bundled Vulkan
       // SwiftShader ICD. Both are software rasterisers, which is all this box

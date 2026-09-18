@@ -1,0 +1,121 @@
+@import "./tokens.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--orion-bg);
+  color: var(--orion-fg);
+  font-family: var(--orion-font-ui);
+  overflow: hidden;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+.orion-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--orion-bg);
+}
+
+.orion-topbar {
+  display: flex;
+  align-items: baseline;
+  gap: var(--orion-gap);
+  padding: 10px var(--orion-pad);
+  background: var(--orion-surface);
+  border-bottom: 1px solid var(--orion-border);
+}
+
+.orion-topbar h1 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--orion-fg);
+}
+
+.orion-tagline {
+  flex: 1;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--orion-fg-dim);
+}
+
+.orion-readout {
+  margin: 0;
+  font-family: var(--orion-font-mono);
+  font-size: 12px;
+  color: var(--orion-accent);
+  white-space: nowrap;
+}
+
+.orion-viewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--orion-bg);
+}
+
+.orion-viewport canvas.orion-display {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.orion-scratch {
+  display: none;
+}
+
+.orion-statusbar {
+  display: flex;
+  align-items: center;
+  gap: var(--orion-gap);
+  padding: 0 var(--orion-pad);
+  min-height: 28px;
+  background: var(--orion-surface);
+  border-top: 1px solid var(--orion-border);
+}
+
+.orion-status {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--orion-font-mono);
+  font-size: 11px;
+  color: var(--orion-fg-dim);
+}
+
+.orion-error {
+  margin: 0;
+  padding: 6px var(--orion-pad);
+  font-family: var(--orion-font-mono);
+  font-size: 11px;
+  color: var(--orion-danger);
+  background: var(--orion-surface-2);
+  border-top: 1px solid var(--orion-danger);
+  white-space: pre-wrap;
+}

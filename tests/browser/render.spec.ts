@@ -247,7 +247,10 @@ test("the app boots, renders and reports its stage", async ({ page }) => {
 
   await page.goto("/");
   // Two canvases exist: the visible display surface and a hidden scratch one.
+  // Exactly one must be visible — a CSS specificity slip once made the hidden
+  // scratch canvas visible too, which also broke every strict-mode locator.
   const canvas = page.locator("canvas:visible");
+  await expect(canvas).toHaveCount(1);
   await expect(canvas).toBeVisible();
   // The status line only fills in once every pass has completed, and it reports
   // the ladder's plan followed by the backend stages actually used.

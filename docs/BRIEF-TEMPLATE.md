@@ -1,7 +1,7 @@
 # Writer brief template (copy-paste)
 
 ```markdown
-You are a WRITER on Orion (Vite + React + TypeScript + Vitest + Zod on DSH). Read `AGENTS.md` FIRST —
+You are a WRITER on Orion (Vite + React + TypeScript + Vitest + Zod on OpenCode). Read `AGENTS.md` FIRST —
 quality bars, critique-the-instruction, centralization / COPIES, host hygiene.
 Then read the specs / ledger rows for this area.
 
@@ -61,6 +61,6 @@ Report NOTHING in between. If you can PROVE a rule here is wrong (including this
 brief's design), report BLOCKED with evidence rather than implementing it.
 ```
 
-**Solo Cursor note:** Same brief shape without worktree theater — still name the
+**Solo note:** Same brief shape without worktree theater — still name the
 seam, COPIES line, verify commands, and re-run gate after landing. Absolute paths
 matter as soon as a second tree/agent exists.

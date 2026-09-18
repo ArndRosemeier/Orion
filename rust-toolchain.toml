@@ -1,0 +1,7 @@
+# The Rust toolchain is pinned because the gate byte-compares the committed
+# .wasm kernels against a fresh build. A different rustc can emit different
+# bytes, which would turn the drift check into a false alarm and block deploys
+# (ledger row 48). Local `cargo` and CI both read this file.
+[toolchain]
+channel = "1.98.1"
+targets = ["wasm32-unknown-unknown"]

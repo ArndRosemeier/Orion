@@ -6,23 +6,28 @@ AGENTS.md only points here — do not paste encyclopedias into always-on rules.
 
 ## Index — shared modules
 
-| Name                      | Path                                 | When to use                                                                                               |
-| ------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| clamp                     | `src/lib/clamp.ts`                   | Bound a number into `[min, max]`; throws if min > max                                                     |
-| loadEnv                   | `src/env.ts`                         | Parse Vite env at the boundary with Zod                                                                   |
-| BigFixed                  | `src/domain/numeric/bigfixed.ts`     | Arbitrary-precision real arithmetic; exact beyond the double range; throws on precision mismatch          |
-| BigComplex                | `src/domain/numeric/bigcomplex.ts`   | Complex arithmetic over `BigFixed`                                                                        |
-| fracBitsForScaleExponent  | `src/domain/numeric/precision.ts`    | Working precision for a known zoom depth — use this to **construct** a view                               |
-| fracBitsForPixelSize      | `src/domain/numeric/precision.ts`    | Bits a pixel spacing demands — use this to **validate** an existing view                                  |
-| makeView / pixelToComplex | `src/domain/view/view.ts`            | Viewport ↔ complex plane mapping at arbitrary precision                                                   |
-| escapeDirect              | `src/domain/engines/direct.ts`       | L0 escape-time engine **and** the oracle every accelerated path is pinned against                         |
-| Floatexp                  | `src/domain/numeric/floatexp.ts`     | Wide-range scalar: 53-bit mantissa + unbounded exponent. Use when a value may fall below the double range |
-| computeReferenceOrbit     | `src/domain/engines/reference.ts`    | High-precision reference orbit for perturbation; stores floatexp, stops at escape                         |
-| FloatComplex              | `src/domain/numeric/floatcomplex.ts` | Complex pair over `Floatexp` — the perturbation engine's working type                                     |
-| escapePerturbed           | `src/domain/engines/perturbation.ts` | Deep-zoom delta iteration. Returns a distinct `glitched` case; callers must handle it                     |
-| escapeWithRepair          | `src/domain/engines/perturbation.ts` | Perturbation with explicit repair by the direct engine; reports which engine ran                          |
-| isGlitched                | `src/domain/engines/perturbation.ts` | Pauldelbrot's criterion as a seam, so the threshold itself is pinnable                                    |
-| fromDecimal               | `src/domain/numeric/bigfixed.ts`     | Parse a plain decimal coordinate at full precision — share URLs, saved locations, deep tests              |
+| Name                         | Path                                 | When to use                                                                                               |
+| ---------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| clamp                        | `src/lib/clamp.ts`                   | Bound a number into `[min, max]`; throws if min > max                                                     |
+| loadEnv                      | `src/env.ts`                         | Parse Vite env at the boundary with Zod                                                                   |
+| BigFixed                     | `src/domain/numeric/bigfixed.ts`     | Arbitrary-precision real arithmetic; exact beyond the double range; throws on precision mismatch          |
+| BigComplex                   | `src/domain/numeric/bigcomplex.ts`   | Complex arithmetic over `BigFixed`                                                                        |
+| fracBitsForScaleExponent     | `src/domain/numeric/precision.ts`    | Working precision for a known zoom depth — use this to **construct** a view                               |
+| fracBitsForPixelSize         | `src/domain/numeric/precision.ts`    | Bits a pixel spacing demands — use this to **validate** an existing view                                  |
+| makeView / pixelToComplex    | `src/domain/view/view.ts`            | Viewport ↔ complex plane mapping at arbitrary precision                                                   |
+| escapeDirect                 | `src/domain/engines/direct.ts`       | L0 escape-time engine **and** the oracle every accelerated path is pinned against                         |
+| Floatexp                     | `src/domain/numeric/floatexp.ts`     | Wide-range scalar: 53-bit mantissa + unbounded exponent. Use when a value may fall below the double range |
+| computeReferenceOrbit        | `src/domain/engines/reference.ts`    | High-precision reference orbit for perturbation; stores floatexp, stops at escape                         |
+| FloatComplex                 | `src/domain/numeric/floatcomplex.ts` | Complex pair over `Floatexp` — the perturbation engine's working type                                     |
+| escapePerturbed              | `src/domain/engines/perturbation.ts` | Deep-zoom delta iteration. Returns a distinct `glitched` case; callers must handle it                     |
+| escapeWithRepair             | `src/domain/engines/perturbation.ts` | Perturbation with explicit repair by the direct engine; reports which engine ran                          |
+| isGlitched                   | `src/domain/engines/perturbation.ts` | Pauldelbrot's criterion as a seam, so the threshold itself is pinnable                                    |
+| fromDecimal                  | `src/domain/numeric/bigfixed.ts`     | Parse a plain decimal coordinate at full precision — share URLs, saved locations, deep tests              |
+| resizeView                   | `src/domain/view/view.ts`            | Re-express a view at a new pixel grid keeping its centre and zoom — window resize                         |
+| backingScale / backingPixels | `src/ui/backingScale.ts`             | Device-pixel backing size for a CSS surface, bounded by a pixel budget                                    |
+| useElementSize               | `src/ui/useElementSize.ts`           | Measure an element's CSS size with `ResizeObserver`                                                       |
+| AppShell / ErrorBanner       | `src/ui/AppShell.tsx`                | The one app layout (top bar / viewport / status) and the visible error surface                            |
+| UI tokens                    | `src/styles/tokens.css`              | The one source for dark-theme colour, spacing and type values                                             |
 
 ## House patterns (5–15 max, link to code)
 
@@ -100,21 +105,27 @@ AGENTS.md only points here — do not paste encyclopedias into always-on rules.
 59. **A cost model that is never fed is a decoration** — a planner that accepts a measurement nobody supplies will quietly never choose the option that depends on it, and every test of the _pricing_ still passes. _Landing 27:_ `planView` had priced `measuredSeriesSkip` since the ladder landed and nothing had ever produced one, so the series stage was unreachable in the product. The fix is a seam from the renderer back to the planner, and a pin on the _loop_, not on the arithmetic.
 60. **Measure against the shape of the work, not the exact input** — a measurement keyed on the exact centre would be discarded on the next pan, which is precisely when it is useful. _Landing 27:_ the key is scale, canvas and budget, so views a pixel apart share what was measured.
 
+61. **One styling seam: tokens, not literals** — every chrome value comes from a `--orion-*` token; a raw hex or spacing literal in presentational code is drift waiting to happen. _Incident (landing 46):_ the first UI wiring left the hidden scratch canvas **visible**, because a broad `.orion-viewport canvas { display: block }` rule has higher specificity than `.orion-scratch { display: none }`. Nothing looked broken visually; the browser lane's strict-mode `canvas:visible` locator resolving to two elements is what caught it, and that locator is now the tripwire for the class.
+
+62. **A resize keeps the place and the zoom** — re-expressing a view at a new pixel grid must preserve the complex-plane centre and the per-pixel scale; change either and the image jumps or zooms under the user when they drag a window edge. `resizeView` does exactly that, recomputes the complex width through `makeView` so validation still runs, and the honest rounding (a few ulps of width) is documented like navigation's. _Landing 46._
+
 ## Do not / do instead
 
-| Do not                                        | Do instead                                       | Incident / why                                             |
-| --------------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------- |
-| Near-duplicate helpers                        | One seam + pin                                   | Drift is invisible at birth                                |
-| Claim done without gate                       | Re-run `scripts/gate.sh` after land              | Author verify ≠ independent verify                         |
-| Mix package managers                          | `pnpm` only (see AGENTS.md)                      | Lockfile / script drift                                    |
-| Invent product features                       | Follow the directed product scope (ledger row 2) | Scope creep; briefs come from Arnd                         |
-| Compare values across representations         | Assert the invariant in the exact type           | Landing 2 false failure: rounded double vs exact threshold |
-| Trust a pin without breaking it once          | Mutation-check it                                | A pin that cannot go red is decoration                     |
-| Derive working precision from a built view    | Derive from the scale, then validate the view    | Circular: a too-coarse view cannot report what it needs    |
-| Assume `cargo` is on PATH                     | Call `~/.cargo/bin/cargo` explicitly             | rustup installs outside the default PATH                   |
-| Time GPU work on this box                     | Measure on real hardware via the HUD             | SwiftShader is 100–1000× slower; timings are noise         |
-| Test only typical magnitudes                  | Include negative values and extreme gaps         | Landing 3: two mutations survived until those pins existed |
-| Pin a hand-derived numeric prediction         | Measure it first, then pin the measured property | Landing 3: the derived prediction was simply wrong         |
-| Pin a threshold via a total-cancellation case | Pin just inside and just outside the threshold   | Landing 4: `0 < x` fires under any threshold               |
-| Widen a tolerance to make a test pass         | Trace the discrepancy, then set from measurement | Landing 4: unexplained 6e-6 became a documented mechanism  |
-| Assume a test view is non-degenerate          | Assert escapes / trusted pixels occurred         | Landing 4: a 3-depth survey proved nothing at `escaped=0`  |
+| Do not                                                   | Do instead                                       | Incident / why                                              |
+| -------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------- |
+| Near-duplicate helpers                                   | One seam + pin                                   | Drift is invisible at birth                                 |
+| Claim done without gate                                  | Re-run `scripts/gate.sh` after land              | Author verify ≠ independent verify                          |
+| Mix package managers                                     | `pnpm` only (see AGENTS.md)                      | Lockfile / script drift                                     |
+| Invent product features                                  | Follow the directed product scope (ledger row 2) | Scope creep; briefs come from Arnd                          |
+| Compare values across representations                    | Assert the invariant in the exact type           | Landing 2 false failure: rounded double vs exact threshold  |
+| Trust a pin without breaking it once                     | Mutation-check it                                | A pin that cannot go red is decoration                      |
+| Derive working precision from a built view               | Derive from the scale, then validate the view    | Circular: a too-coarse view cannot report what it needs     |
+| Assume `cargo` is on PATH                                | Call `~/.cargo/bin/cargo` explicitly             | rustup installs outside the default PATH                    |
+| Time GPU work on this box                                | Measure on real hardware via the HUD             | SwiftShader is 100–1000× slower; timings are noise          |
+| Test only typical magnitudes                             | Include negative values and extreme gaps         | Landing 3: two mutations survived until those pins existed  |
+| Pin a hand-derived numeric prediction                    | Measure it first, then pin the measured property | Landing 3: the derived prediction was simply wrong          |
+| Pin a threshold via a total-cancellation case            | Pin just inside and just outside the threshold   | Landing 4: `0 < x` fires under any threshold                |
+| Widen a tolerance to make a test pass                    | Trace the discrepancy, then set from measurement | Landing 4: unexplained 6e-6 became a documented mechanism   |
+| Assume a test view is non-degenerate                     | Assert escapes / trusted pixels occurred         | Landing 4: a 3-depth survey proved nothing at `escaped=0`   |
+| Hard-code a chrome colour/spacing in a component         | Reference an `--orion-*` token                   | Landing 46: the one styling seam is `tokens.css`            |
+| Resize by rebuilding the view from its centre as a float | `resizeView` keeps the exact centre + scale      | Landing 46: a float rebuild would silently deepen the place |

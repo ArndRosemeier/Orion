@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate.sh — ONE way the Orion suite runs. Nobody hand-rolls a test command.
 # Memory note: keep this sequential and light on day 1; add RAM ceilings later if the
-# shared box contends. NEVER pipe this script through tail/head (loses summary).
+# machine contends. NEVER pipe this script through tail/head (loses summary).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -41,7 +41,7 @@ acquire_lock
   "$PM" run lint
   echo "--- test ---"
   "$PM" run test
-  echo "--- test:browser (headless Chrome + SwiftShader) ---"
+  echo "--- test:browser (managed Chromium + SwiftShader) ---"
   "$PM" run test:browser
   echo "=== gate end $(date -Iseconds) ==="
 } | tee "$LOG"

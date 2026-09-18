@@ -8,8 +8,9 @@
  * `/shots/` directory that nothing uploads. That is why the sibling project's
  * card image is a 404 and this one is not.
  *
- * It drives the real app in the browser lane's Chrome (SwiftShader), waits for a
- * finished render, and captures the display canvas at its native size.
+ * It drives the real app in the browser lane's managed Chromium (SwiftShader),
+ * waits for a finished render, and captures the display canvas at its native
+ * size. `scripts/with-browser-env.sh` supplies the browser path and libraries.
  *
  * Usage:
  *   node scripts/make-screenshot.mjs [--url http://127.0.0.1:5199] [--out public/shot.png]
@@ -66,6 +67,25 @@ async function waitForServer(url, timeoutMs) {
 }
 
 let server = null;
+
+/**
+ * Stop the preview server *and its children*.
+ *
+ * `pnpm exec vite` runs Vite as a grandchild, so killing the `pnpm` wrapper
+ * leaves Vite holding the inherited stdout pipe — and node, waiting on that
+ * pipe, never exits. Spawning the server detached makes it a process-group
+ * leader; signalling the group (`-pid`) takes Vite down with it. Windows has no
+ * negative-pid kill, hence the fallback.
+ */
+function stopServer() {
+  if (server === null || server.pid === undefined) return;
+  try {
+    process.kill(-server.pid, "SIGTERM");
+  } catch {
+    server.kill("SIGTERM");
+  }
+}
+
 if (explicitUrl === null) {
   server = spawn(
     "pnpm",
@@ -79,16 +99,16 @@ if (explicitUrl === null) {
       "--host",
       "127.0.0.1",
     ],
-    { stdio: ["ignore", "pipe", "pipe"] },
+    { stdio: ["ignore", "pipe", "pipe"], detached: true },
   );
   const up = await waitForServer(appUrl, 60_000);
   if (!up) {
-    server.kill("SIGTERM");
+    stopServer();
     throw new Error(`vite preview did not come up on ${baseUrl}`);
   }
 }
 
-const browser = await chromium.launch({ channel: "chrome", args: chromeArgs });
+const browser = await chromium.launch({ channel: "chromium", args: chromeArgs });
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   const consoleErrors = [];
@@ -120,7 +140,5 @@ try {
   }
 } finally {
   await browser.close();
-  if (server !== null) {
-    server.kill("SIGTERM");
-  }
+  stopServer();
 }

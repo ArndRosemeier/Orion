@@ -189,3 +189,29 @@ export function atPrecision(view: View, fracBits: number): View {
 export function scaleExponentOf(view: View): number {
   return floorLog2(pixelSizeOf(view));
 }
+
+/**
+ * Resize the viewport while holding the place and the zoom.
+ *
+ * The complex-plane centre is preserved bit-exactly and the scale is preserved
+ * by recomputing the complex width from the *existing* pixel size: a pixel
+ * still covers the same complex-plane distance, so changing the viewport adds
+ * or removes pixels around the old image rather than zooming. The result is
+ * built through `makeView`, so the new dimensions are validated as positive
+ * integers and the width is checked > 0 and against its scale exactly as any
+ * other view.
+ *
+ * The recomputed width is a fixed-point product and so can round by a few units
+ * in the last place. That is the same accepted class of rounding as navigation
+ * (`navigate.ts`): a point may move by a fraction of a pixel at depth rather
+ * than not at all, but the centre and `fracBits` are untouched. If the
+ * dimensions already match, the same object is returned, so a caller can use
+ * reference equality to skip work.
+ */
+export function resizeView(view: View, pixelWidth: number, pixelHeight: number): View {
+  if (pixelWidth === view.pixelWidth && pixelHeight === view.pixelHeight) {
+    return view;
+  }
+  const width = mul(pixelSizeOf(view), fromInt(pixelWidth, view.width.fracBits));
+  return makeView(view.center, width, pixelWidth, pixelHeight);
+}

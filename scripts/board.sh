@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# board.sh — light reconciler stub for docs/ORCHESTRATION.md (Orion / DSH)
+# board.sh — light reconciler stub for docs/ORCHESTRATION.md (Orion / OpenCode)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

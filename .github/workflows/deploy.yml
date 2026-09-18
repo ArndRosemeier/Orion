@@ -1,0 +1,67 @@
+name: Deploy to futuremagic.de
+
+# Push to main auto-deploys; the manual trigger re-deploys without a new commit.
+# See docs/DECISION-LEDGER.md row 48 for why this wraps deploy-sync.sh.
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Never run two deploys at once, and never cancel one mid-upload. The sync is
+# incremental, so an interrupted run is safe to retry — a race between two runs
+# is not.
+concurrency:
+  group: deploy-orion
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        # No `version` input on purpose: the action reads `packageManager` from
+        # package.json, the ONE place the pnpm version is declared.
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Must match rust-toolchain.toml: the gate byte-compares the committed
+      # .wasm artifacts, so a different rustc can produce different bytes.
+      # `@stable` here is the ACTION's branch; the input selects the Rust version.
+      - name: Rust toolchain (the gate rebuilds the wasm kernels)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+          targets: wasm32-unknown-unknown
+
+      - name: Browser (managed Chromium for the GPU lane)
+        run: pnpm run setup:browser
+
+      # The repo's ONE gate: wasm drift + deploy selftest + typecheck + lint +
+      # unit + browser. A deploy never ships a build the gate has not passed.
+      - name: Gate
+        run: bash scripts/gate.sh
+
+      # The canonical deploy path, unchanged: build at /Orion/, patch .htaccess,
+      # diff-sync dist/ over FTP without wiping the remote, then register the app
+      # in the website's registry. Wrapping the script keeps CI identical to the
+      # manual deploy, registration included.
+      - name: Deploy (build, sync, register)
+        run: bash deploy-sync.sh
+        env:
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}

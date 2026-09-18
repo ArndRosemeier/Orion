@@ -11,7 +11,8 @@
     "deploy": "bash deploy-sync.sh",
     "deploy:dry-run": "bash deploy-sync.sh --dry-run",
     "deploy:sync": "powershell -ExecutionPolicy Bypass -File deploy-sync.ps1",
-    "screenshot": "node scripts/make-screenshot.mjs",
+    "setup:browser": "bash scripts/setup-browser.sh",
+    "screenshot": "bash scripts/with-browser-env.sh node scripts/make-screenshot.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit --pretty false",
     "lint": "eslint .",
@@ -19,7 +20,7 @@
     "test:watch": "vitest",
     "format": "prettier --write .",
     "gate": "bash scripts/gate.sh",
-    "test:browser": "playwright test"
+    "test:browser": "bash scripts/with-browser-env.sh pnpm exec playwright test"
   },
   "dependencies": {
     "react": "^19.3.0",

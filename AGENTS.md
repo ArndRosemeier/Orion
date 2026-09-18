@@ -1,10 +1,10 @@
 # Orion — agent/workspace rules
 
-Orion is a Vite + React + TypeScript app on the DeepSeek Harness (DSH) shared box.
+Orion is a Vite + React + TypeScript app built and run under OpenCode.
 Product scope is **directed**, not invented — see ledger rows 2+ in `docs/DECISION-LEDGER.md`. Never add product scope on your own initiative.
 
-**Host:** DeepSeek Harness on the shared box (not Cursor/Pyrion). Workspace:
-`/home/box/Harness/Orion`.
+**Host:** OpenCode. Workspace:
+`/workspace/orion`.
 
 ## Quality bars (binding)
 
@@ -46,6 +46,7 @@ Product scope is **directed**, not invented — see ledger rows 2+ in `docs/DECI
 - format: `pnpm run format`
 - build: `pnpm run build`
 - preview: `pnpm run preview`
+- setup:browser: `pnpm run setup:browser` (pinned managed Chromium, rootless; the gate/browser scripts source the generated `.browser-env.sh`)
 - gate: `bash scripts/gate.sh` (ONE suite script; do not hand-roll)
 
 ## Process pointers (durable state)
@@ -67,7 +68,7 @@ Read/update in the same commit when relevant:
 - **Ask first:** new deps, wide renames, prod/deploy, force-push.
 - **Never:** secrets in chat/rules; silent Auto on hard tasks without a plan; second package manager; invent product/game features without Arnd direction.
 
-## DSH / multi-writer notes
+## OpenCode / multi-writer notes
 
 - Worktrees under `/tmp` (one per writer); put **absolute paths twice** in every brief.
 - ≤2 writers in flight; file-disjoint sources; one locked gate at a time (`scripts/gate.sh`).

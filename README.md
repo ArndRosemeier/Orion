@@ -16,7 +16,7 @@ Product scope is directed — see `docs/DECISION-LEDGER.md` rows 2+. Do not inve
 
 - **Canonical agent rules:** [`AGENTS.md`](./AGENTS.md) (read this first).
 - **Process docs:** `docs/` (ledger, architecture, orchestration board, testing, how-we-do-it).
-- **Host:** DSH workspace at `/home/box/Harness/Orion` (not Cursor/Pyrion).
+- **Host:** OpenCode workspace at `/workspace/orion`.
 
 ## Package manager
 
@@ -38,14 +38,24 @@ bash scripts/gate.sh
 | `typecheck`           | `tsc --noEmit`                                                                      |
 | `lint`                | ESLint                                                                              |
 | `test` / `test:watch` | Vitest (math pins against the oracle)                                               |
-| `test:browser`        | Playwright: headless Chrome, GPU and CPU kernels differentially                     |
+| `test:browser`        | Playwright: managed Chromium, GPU and CPU kernels differentially                    |
+| `setup:browser`       | Install the pinned Playwright Chromium rootless + write `.browser-env.sh`           |
 | `format`              | Prettier                                                                            |
 | `gate`                | **the one suite**: locked wasm-drift check + typecheck + lint + Vitest + Playwright |
 
-The gate needs the Rust toolchain (`wasm32-unknown-unknown`) because it rebuilds
-`crates/l0` and `crates/perturb` and byte-compares them against the committed
-`.wasm` artifacts; the artifacts themselves are checked in, so the app builds
-without Rust.
+The gate needs the Rust toolchain (`wasm32-unknown-unknown`, pinned in
+`rust-toolchain.toml`) because it rebuilds `crates/l0` and `crates/perturb` and
+byte-compares them against the committed `.wasm` artifacts. The version is pinned
+because that comparison is byte-exact and a different rustc can fail it; the
+artifacts themselves are checked in, so the app builds without Rust.
+
+The browser lane drives Playwright's **managed** Chromium, so the browser version
+is pinned by `playwright` in `pnpm-lock.yaml` and no system Chrome is required. On
+a fresh machine (especially a rootless container), run once:
+
+```bash
+pnpm run setup:browser   # installs Chromium; stages its shared libs on Debian
+```
 
 ## Deploying to futuremagic.de
 
@@ -72,6 +82,13 @@ What the deploy does, in order:
    which is what puts a card on the site. The card reads
    `/Orion/futuremagic.json` for its title, tagline, tags and screenshot.
 
+Pushing to `main` runs the same path automatically in GitHub Actions
+(`.github/workflows/deploy.yml`): it runs the repo's gate first, then
+`deploy-sync.sh`, so a build that fails any check is never published. It needs one
+repository secret, `FTP_PASSWORD` (Settings → Secrets and variables → Actions);
+nothing else is machine-specific. The manual `./deploy-sync.sh` stays for dry runs
+and local deploys.
+
 The `.htaccess` is load-bearing rather than boilerplate: it serves `.wasm` with
 the right MIME type (without it the kernels will not instantiate) and sets
 `Cross-Origin-Opener-Policy`/`Cross-Origin-Embedder-Policy`, which is what makes
@@ -79,9 +96,9 @@ the right MIME type (without it the kernels will not instantiate) and sets
 pass image instead of transferring them.
 
 Regenerate the card image with `pnpm run screenshot` (it drives the real app in
-headless Chrome; on a box without a GPU that takes minutes, since software Vulkan
-draws every pixel).
+the managed Chromium and waits for a full render, which can be slow under
+software Vulkan).
 
-## Open in DSH
+## Open in OpenCode
 
-Point the harness at `/home/box/Harness/Orion`. Agents follow `AGENTS.md`.
+Point OpenCode at `/workspace/orion`. Agents follow `AGENTS.md`.

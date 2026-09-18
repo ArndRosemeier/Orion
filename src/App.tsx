@@ -11,15 +11,20 @@ import { type PassImage, renderView } from "./domain/render/scheduler";
 import { createTileCache, type TileCache } from "./domain/render/tiles";
 import { type BackendKind, passesFor } from "./domain/render/passes";
 import { describeView } from "./domain/view/label";
-import { scaleExponentOf, type View } from "./domain/view/view";
+import { resizeView, scaleExponentOf, type View } from "./domain/view/view";
 import { decodeView, encodeView } from "./domain/view/url";
+import { AppShell } from "./ui/AppShell";
+import { backingPixels } from "./ui/backingScale";
+import { useElementSize } from "./ui/useElementSize";
 
 /**
  * The app shell.
  *
  * Rendering goes through the backend seam and the scheduler, and this file knows
  * nothing about shaders, tiles or precision. It holds a view, hands it to the
- * scheduler, and paints what comes back.
+ * scheduler, and paints what comes back. The presentation frame lives in
+ * `AppShell`; the domain seams (`backingPixels`, `resizeView`) decide the pixel
+ * grid and re-express the view at it.
  *
  * The scheduler is what makes the interaction honest: a coarse pass lands almost
  * immediately, the full pass follows, and panning mid-render *cancels* the work
@@ -28,8 +33,9 @@ import { decodeView, encodeView } from "./domain/view/url";
  */
 
 const MAX_ITERATIONS = 600;
-const CANVAS_WIDTH = 960;
-const CANVAS_HEIGHT = 640;
+const INITIAL_PIXEL_WIDTH = 960;
+const INITIAL_PIXEL_HEIGHT = 640;
+const RESIZE_DEBOUNCE_MS = 120;
 
 /**
  * Rendered tiles, kept across frames. Without this, every pan and every zoom
@@ -45,14 +51,16 @@ function initialView(): View {
     INITIAL.re,
     INITIAL.im,
     INITIAL.width,
-    CANVAS_WIDTH,
-    CANVAS_HEIGHT,
+    INITIAL_PIXEL_WIDTH,
+    INITIAL_PIXEL_HEIGHT,
   );
 }
 
 export function App() {
+  const viewportRef = useRef<HTMLDivElement | null>(null);
   const displayRef = useRef<HTMLCanvasElement | null>(null);
   const scratchRef = useRef<HTMLCanvasElement | null>(null);
+  const size = useElementSize(viewportRef);
   const backendsRef = useRef<
     {
       name: string;
@@ -67,6 +75,8 @@ export function App() {
     tileCacheRef.current = createTileCache(TILE_CACHE_CAPACITY);
   }
   const viewRef = useRef<View>(initialView());
+  const firstMeasurementRef = useRef(false);
+  const resizeTimeoutRef = useRef<number | null>(null);
   const [status, setStatus] = useState("starting");
   const [error, setError] = useState<string | null>(null);
   const [centreLabel, setCentreLabel] = useState("");
@@ -132,7 +142,7 @@ export function App() {
       const plan = planView({
         scaleExponent,
         maxIterations: MAX_ITERATIONS,
-        pixelCount: CANVAS_WIDTH * CANVAS_HEIGHT,
+        pixelCount: view.pixelWidth * view.pixelHeight,
         quality: "preview",
         measuredSeriesSkip: measured?.seriesSkip ?? 0,
       });
@@ -150,8 +160,8 @@ export function App() {
       // worker has several waves — one tile would mean one worker.
       const passes = passesFor(
         choice.backendKind,
-        CANVAS_WIDTH,
-        CANVAS_HEIGHT,
+        view.pixelWidth,
+        view.pixelHeight,
         choice.concurrency ?? 1,
       );
       const outcome = await renderView({
@@ -185,38 +195,73 @@ export function App() {
   }, [paint]);
 
   useEffect(() => {
-    let cancelled = false;
-    // A shared link wins over the default view. A link that does not parse is
-    // shown as an error rather than silently replaced by the default — opening
-    // the wrong place without saying so is the worst possible outcome here.
-    void (async () => {
-      const hash = window.location.hash;
-      if (hash.length > 1) {
-        try {
-          const decoded = decodeView(hash);
-          // Kept exactly as decoded. A deep link carries hundreds of bits, and
-          // rounding it through a double here would silently open a shallower
-          // place than the one that was shared.
-          viewRef.current = decoded.view;
-        } catch (cause) {
-          if (cancelled) return;
-          setError(cause instanceof Error ? cause.message : String(cause));
-          setStatus("bad link");
-          return;
+    if (size.width <= 0 || size.height <= 0) return;
+    const display = displayRef.current;
+    if (display === null) return;
+
+    // The backing store is set here and nowhere else: `backingPixels` owns the
+    // device-pixel and budget decision. The display canvas is never drawn at the
+    // placeholder size, which is replaced on this first measurement.
+    const backing = backingPixels(
+      size.width,
+      size.height,
+      window.devicePixelRatio || 1,
+    );
+    display.width = backing.width;
+    display.height = backing.height;
+
+    const isFirstMeasurement = !firstMeasurementRef.current;
+    firstMeasurementRef.current = true;
+
+    if (isFirstMeasurement) {
+      // Inside an async call so the error/status updates land on a later tick,
+      // which keeps the effect from cascading a render from its own body.
+      void (async () => {
+        // A shared link wins over the default view, once, on the first real
+        // measurement. A link that does not parse is shown as an error rather
+        // than silently replaced by the default — opening the wrong place
+        // without saying so is the worst possible outcome here. It is not drawn
+        // either, so the malformed-link failure stays visible.
+        const hash = window.location.hash;
+        if (hash.length > 1) {
+          try {
+            viewRef.current = decodeView(hash).view;
+          } catch (cause) {
+            setError(cause instanceof Error ? cause.message : String(cause));
+            setStatus("bad link");
+            return;
+          }
         }
+        viewRef.current = resizeView(viewRef.current, backing.width, backing.height);
+        // The very first draw is immediate: a debounce would leave the viewport
+        // blank for no reason when there is nothing in flight to protect.
+        await draw();
+      })();
+    } else {
+      viewRef.current = resizeView(viewRef.current, backing.width, backing.height);
+      if (resizeTimeoutRef.current !== null) {
+        window.clearTimeout(resizeTimeoutRef.current);
       }
-      if (!cancelled) await draw();
-    })();
+      resizeTimeoutRef.current = window.setTimeout(() => {
+        resizeTimeoutRef.current = null;
+        void draw();
+      }, RESIZE_DEBOUNCE_MS);
+    }
+
     return () => {
-      cancelled = true;
+      if (resizeTimeoutRef.current !== null) {
+        window.clearTimeout(resizeTimeoutRef.current);
+        resizeTimeoutRef.current = null;
+      }
     };
-  }, [draw]);
+  }, [size, draw]);
 
   const onWheel = useCallback(
     (event: React.WheelEvent<HTMLCanvasElement>) => {
       const rect = event.currentTarget.getBoundingClientRect();
-      const px = ((event.clientX - rect.left) / rect.width) * CANVAS_WIDTH;
-      const py = ((event.clientY - rect.top) / rect.height) * CANVAS_HEIGHT;
+      const view = viewRef.current;
+      const px = ((event.clientX - rect.left) / rect.width) * view.pixelWidth;
+      const py = ((event.clientY - rect.top) / rect.height) * view.pixelHeight;
 
       // Keep the complex point under the cursor fixed while zooming. Both the
       // point and the new centre are computed in fixed point at the precision
@@ -246,8 +291,9 @@ export function App() {
       const drag = dragRef.current;
       if (!drag) return;
       const rect = event.currentTarget.getBoundingClientRect();
-      const dx = ((event.clientX - drag.x) / rect.width) * CANVAS_WIDTH;
-      const dy = ((event.clientY - drag.y) / rect.height) * CANVAS_HEIGHT;
+      const view = viewRef.current;
+      const dx = ((event.clientX - drag.x) / rect.width) * view.pixelWidth;
+      const dy = ((event.clientY - drag.y) / rect.height) * view.pixelHeight;
       viewRef.current = panByPixels(viewRef.current, dx, dy);
       dragRef.current = { x: event.clientX, y: event.clientY };
       void draw();
@@ -260,61 +306,23 @@ export function App() {
   }, []);
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", margin: 0, padding: 16 }}>
-      <h1 style={{ fontSize: 20, margin: "0 0 4px" }}>Orion</h1>
-      <p style={{ margin: "0 0 12px", color: "#555", fontSize: 13 }}>
-        Drag to pan, scroll to zoom. A coarse pass lands first, then the full image;
-        changing the view cancels work in flight.
-      </p>
+    <AppShell
+      title="Orion"
+      tagline="Drag to pan, scroll to zoom. A coarse pass lands first, then the full image; changing the view cancels work in flight."
+      centreLabel={centreLabel}
+      status={status}
+      error={error}
+      viewportRef={viewportRef}
+    >
       <canvas
         ref={displayRef}
-        width={CANVAS_WIDTH}
-        height={CANVAS_HEIGHT}
+        className="orion-display"
         onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        style={{
-          display: "block",
-          cursor: "grab",
-          border: "1px solid #ccc",
-          maxWidth: "100%",
-        }}
       />
-      <canvas ref={scratchRef} style={{ display: "none" }} />
-      <p
-        style={{
-          fontFamily: "ui-monospace, monospace",
-          fontSize: 12,
-          margin: "8px 0 0",
-        }}
-      >
-        {centreLabel}
-      </p>
-      <p
-        style={{
-          fontFamily: "ui-monospace, monospace",
-          fontSize: 12,
-          margin: "4px 0 0",
-          color: "#555",
-        }}
-      >
-        {status}
-      </p>
-      {error !== null && (
-        <p
-          role="alert"
-          style={{
-            fontFamily: "ui-monospace, monospace",
-            fontSize: 12,
-            margin: "8px 0 0",
-            color: "#a00",
-            whiteSpace: "pre-wrap",
-          }}
-        >
-          {error}
-        </p>
-      )}
-    </main>
+      <canvas ref={scratchRef} className="orion-scratch" />
+    </AppShell>
   );
 }

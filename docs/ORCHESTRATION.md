@@ -8,7 +8,7 @@ Every record names something checkable (sha, branch, worktree, path). Prefer `fi
 | Prefix        | Means                                                                      |
 | ------------- | -------------------------------------------------------------------------- |
 | `reconciled:` | commit/timestamp the board was last checked against                        |
-| `SESSION`     | actor that may dispatch (DSH CoS / session)                                |
+| `SESSION`     | actor that may dispatch (OpenCode chief-of-staff / session)                |
 | `IN-FLIGHT`   | writer slice: row, worktree, branch, base, state, scope                    |
 | `LANDED`      | verified landing: row, sha, **verifier's own** gate numbers, retired, note |
 | `QUEUE`       | requests / debt not yet started (reserve ledger row if known)              |
@@ -16,7 +16,7 @@ Every record names something checkable (sha, branch, worktree, path). Prefer `fi
 
 Optional later: `PROBE`, `QUEUE-CLOSED`, `GUARD`, `RECOVERY`.
 
-## DSH note
+## OpenCode note
 
 Session start = reconcile (`bash scripts/board.sh`) before dispatch when multi-agent.
 Worktrees under `/tmp`; absolute paths in every brief; ≤2 writers; one gate at a time.
@@ -26,7 +26,7 @@ Worktrees under `/tmp`; absolute paths in every brief; ≤2 writers; one gate at
 ```
 reconciled: landing-14 (series accelerator wired in + coefficient cache) · no VCS (repo has no commits) · verify=gate green
 
-SESSION | id=dsh | project=Orion | path=/home/box/Harness/Orion | state=active | role=chief-of-staff+writer
+SESSION | id=opencode | project=Orion | path=/workspace/orion | state=active | role=chief-of-staff+writer
 
 LANDED | row=2,3,4,5 | sha=n/a (no commits yet) | verify=MY OWN: gate typecheck+lint tests green | retired=— | note=S1a precision substrate: bigfixed/bigcomplex/precision/view/direct-oracle; 9/9 mutation checks caught; COPIES 2→1 rounding rule folded
 LANDED | row=6,7 | sha=n/a (no commits yet) | verify=MY OWN: gate typecheck+lint 108 tests green | retired=— | note=S1b floatexp (wide-range storage) + reference orbit at full precision, stored 53-bit; 9/9 mutation checks caught after closing 2 blind spots; escape index pinned equal to escapeDirect
@@ -90,6 +90,12 @@ LANDED | row=44 | note=the ladder is fed by measurement: a render records the va
 QUEUE | debt | note=the tile cache is per-lattice and bounded (512 tiles): a zoom change discards the lattice rather than migrating entries
 
 LANDED | row=45 | sha=n/a (no commits yet) | verify=MY OWN: gate check:deploy (registry selftest) + 313 unit + 41 browser tests green | retired=— | note=Orion deploys to futuremagic.de like the sibling projects, plus the registration step the Linux path skipped: /webseiten/apps.json upserted with one entry, byte-identical to the Windows helper's style (round-tripped against the live file). BLOCKED on the upload itself: the FTP data channel stalls from this box (control commands fine, data connection established, then STOR/LIST/MKD hang in both curl and ftplib)
+
+LANDED | row=46 | sha=n/a (no commits yet) | verify=non-browser arms green (wasm-check + deploy selftest + typecheck + lint + 349 unit); browser lane 41/41 under Playwright-managed Chromium via a temporary config | retired=— | note=the app fills the window: dark token stylesheet + AppShell/ErrorBanner/useElementSize/backingScale, and the `resizeView` domain seam (centre + zoom preserved across window resize). Existing selectors/status strings unchanged, so the behavioural contract did not move. Browser pin caught the scratch canvas being visible (broad `.orion-viewport canvas` out-specified `.orion-scratch`); fixed. ENV: this container has no system Chrome, so `scripts/gate.sh`'s `test:browser` cannot launch — repo `channel: "chrome"` unchanged
+
+LANDED | row=47 | sha=n/a (no commits yet) | verify=MY OWN: GATE GREEN end to end on a box with no system Chrome and no root (wasm-check + deploy selftest + typecheck + lint + 349 unit + 41 browser) | retired=— | note=the browser lane drives Playwright's managed Chromium (channel=chromium, version pinned by playwright@1.63.0 → 153.0.8010.12); `scripts/setup-browser.sh` installs it rootless into a checkout-relative dir and stages Debian shared libs with a user-local apt state; `scripts/with-browser-env.sh` sources the gitignored `.browser-env.sh` for `test:browser`/`screenshot`. Idempotent (2nd run no-op). Resolves the "browser version not pinned" debt
+
+LANDED | row=48 | sha=n/a (no commits yet) | verify=workflow YAML parses (js-yaml); NOT run on GitHub (no gh auth, secret unverifiable) | retired=— | note=GitHub Actions auto-deploy on push to main / workflow_dispatch: checkout → pnpm/node → install → Rust wasm target → managed browser → `bash scripts/gate.sh` → `bash deploy-sync.sh`. Wraps the canonical deploy script (build /Orion/, patch .htaccess, incremental FTP sync, registry upsert) instead of reimplementing it with an FTP action, so CI and local deploys cannot drift; the gate runs first so a red build never publishes. Needs repo secret `FTP_PASSWORD`
 
 QUEUE | S6 | note=a WASM reference orbit (still JavaScript bigint, computed once per worker per view — the main remaining latency on a new deep view)
 QUEUE | S6 | note=f64x2 in the reference-orbit computation, once the orbit itself is in Rust

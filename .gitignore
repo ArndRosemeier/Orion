@@ -16,6 +16,9 @@ crates/*/target
 test-results/
 playwright-report/
 
+# Machine-local browser environment written by scripts/setup-browser.sh
+.browser-env.sh
+
 # Python bytecode from the deploy tooling
 __pycache__/
 *.pyc
